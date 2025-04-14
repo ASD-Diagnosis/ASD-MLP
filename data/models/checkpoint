@@ -1,0 +1,2 @@
+model_checkpoint_path: "cc200_whole_0_mlp.ckpt"
+all_model_checkpoint_paths: "cc200_whole_0_mlp.ckpt"
