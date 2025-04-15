@@ -1,23 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-
-Autoencoders evaluation.
-
-Usage:
-  nn_evaluate.py [--whole] [--male] [--threshold] [--leave-site-out] [--NYU-site-out] [<derivative> ...]
-  nn_evaluate.py (-h | --help)
-
-Options:
-  -h --help           Show this screen
-  --whole             Run model for the whole dataset
-  --male              Run model for male subjects
-  --threshold         Run model for thresholded subjects
-  --leave-site-out    Prepare data using leave-site-out method
-  derivative          Derivatives to process
-
-"""
 import numpy as np
 import pandas as pd
 #import tensorflow as tf
@@ -30,7 +10,7 @@ from sklearn.metrics import confusion_matrix, accuracy_score, f1_score, roc_auc_
 import tensorflow.compat.v1 as tf
 from sklearn.feature_selection import SelectKBest,f_classif
 
-
+#  Evaluates a trained MLP model on test data from one fold of a given experiment,
 def nn_results(hdf5, experiment, code_size_1, code_size_2):
 
     # import pdb; pdb.set_trace()
@@ -50,7 +30,7 @@ def nn_results(hdf5, experiment, code_size_1, code_size_2):
             "fold": fold,
         })
 
-        
+        # Load training, validation, and test splits for the fold
         X_train, y_train, \
         X_valid, y_valid, \
         X_test, y_test = load_fold(hdf5["patients"], exp_storage, fold)
@@ -76,40 +56,12 @@ def nn_results(hdf5, experiment, code_size_1, code_size_2):
 
         X_new=np.concatenate((X_new,X_all[:,-2:]),axis=1)
 
+        # Slice new feature matrix into train/valid/test again
         X_train=X_new[:train]
         X_valid=X_new[train:train+valid]
         X_test=X_new[train+valid:train+valid+test]
 
-        # print(X_new.shape)
-
-        #y_test = np.array([to_softmax(n_classes, y) for y in y_test])
-
-
-        #X_test=X_new[:]
         y_test = np.array([to_softmax(n_classes, y) for y in y_all])
-
-        '''
-        X_NYU=np.load('X_NYU.npy')
-        y_NYU=np.load('y_NYU.npy')
-
-        X_sub=np.load('/content/drive/MyDrive/acerta-abide/X_sub_without_NYU.npy')
-        y_sub=np.load('/content/drive/MyDrive/acerta-abide/y_sub_without_NYU.npy')
-        
-        X=np.vstack((X_NYU,X_sub))
-        y=np.concatenate((y_NYU,y_sub))
-
-        ks=0
-        if X.shape[1]<10000:
-          ks=1000
-        else:
-          ks=3000
-        X_new=SelectKBest(f_classif,k=ks).fit_transform(X, y)
-        print(X_new.shape)
-
-        
-        X_train,X_test,y_train,y_test = train_test_split(X_new,y,test_size=0.1,random_state=0)
-        X_train,X_valid,y_train,y_valid = train_test_split(X_train,y_train,test_size=0.33,random_state=0)
-        '''
 
 
         ae1_model_path = format_config("./data/models/{experiment}_autoencoder-1.ckpt", {
@@ -123,7 +75,7 @@ def nn_results(hdf5, experiment, code_size_1, code_size_2):
         })
 
         try:
-
+            # Build MLP architecture
             model = nn(X_test.shape[1], n_classes, [
                 {"size": 1000, "actv": tf.nn.tanh},
                 {"size": 600, "actv": tf.nn.tanh},
@@ -132,11 +84,11 @@ def nn_results(hdf5, experiment, code_size_1, code_size_2):
             ])
 
             init = tf.compat.v1.global_variables_initializer()
-            #init = tf.global_variables_initializer()
             with tf.Session() as sess:
 
                 sess.run(init)
 
+                 # Load pre-trained weights
                 saver = tf.train.Saver(model["params"])
                 saver.restore(sess, nn_model_path)
 
@@ -176,7 +128,8 @@ def nn_results(hdf5, experiment, code_size_1, code_size_2):
 
                 np.save('X_sub_without_NYU.npy',X_sub)
                 np.save('y_sub_without_NYU.npy',y_sub)
-
+                
+                 # Compute metrics
                 [[TN, FP], [FN, TP]] = confusion_matrix(y_true, y_pred, labels=[0, 1]).astype(float)
                 specificity = TN/(FP+TN)
                 precision = TP/(TP+FP)
@@ -237,12 +190,8 @@ if __name__ == "__main__":
         if arguments["--NYU-site-out"]:
             experiments += [format_config("{derivative}_leavesiteout-NYU", config)]
 
-
-    # First autoencoder bottleneck
-    code_size_1 = 1000 # not used
-
-    # Second autoencoder bottleneck
-    code_size_2 = 600 # not used
+    code_size_1 = 1000
+    code_size_2 = 600
 
     results = []
 

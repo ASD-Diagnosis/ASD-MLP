@@ -1,24 +1,3 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
-"""
-
-Autoencoders training and fine-tuning.
-
-Usage:
-  nn.py [--whole] [--male] [--threshold] [--leave-site-out] [<derivative> ...]
-  nn.py (-h | --help)
-
-Options:
-  -h --help           Show this screen
-  --whole             Run model for the whole dataset
-  --male              Run model for male subjects
-  --threshold         Run model for thresholded subjects
-  --leave-site-out    Prepare data using leave-site-out method
-  derivative          Derivatives to process
-
-"""
-
 import os
 import numpy as np
 import tensorflow.compat.v1 as tf
@@ -26,14 +5,18 @@ from sklearn.feature_selection import SelectKBest, f_classif
 
 
 from docopt import docopt
-from utils import (load_phenotypes, format_config, hdf5_handler, load_fold,
-                   sparsity_penalty, reset, to_softmax, load_ae_encoder)
-
 from model import ae, nn
+from utils import (load_phenotypes,
+                    format_config,
+                    hdf5_handler,
+                    load_fold,
+                   sparsity_penalty,
+                    reset, to_softmax,
+                    load_ae_encoder)
 
 
-def run_autoencoder1(experiment,
-                     X_train, y_train, X_valid, y_valid, X_test, y_test,
+
+def run_autoencoder1(experiment,X_train, y_train, X_valid, y_valid, X_test, y_test,
                      model_path, code_size=1000):
     """
 
@@ -48,8 +31,8 @@ def run_autoencoder1(experiment,
     sparse_p = 0.2
     sparse_coeff = 0.5
     corruption = 0.7  # Data corruption ratio for denoising
-    ae_enc = tf.nn.tanh  # Tangent hyperbolic
-    ae_dec = None  # Linear activation
+    ae_enc = tf.nn.tanh  # Encoder activation function
+    ae_dec = None # No decoder, we only need the encoder
 
     training_iters = 700
     batch_size = 100
@@ -149,18 +132,16 @@ def run_autoencoder1(experiment,
             else:
                 print
 
-
-def run_autoencoder2(experiment,
-                     X_train, y_train, X_valid, y_valid, X_test, y_test,
-                     model_path, prev_model_path,
-                     code_size=600, prev_code_size=1000):
-    """
-
-    Run the second autoencoder.
+"""
+ Run the second autoencoder.
     It takes the dimensionality from first autoencoder and compresses it into the new `code_size`
     Firstly, we need to convert original data to the new projection from autoencoder 1.
+"""
 
-    """
+   
+def run_autoencoder2(experiment,X_train, y_train, X_valid, y_valid, X_test,
+                    y_test,model_path, prev_model_path, code_size=600, prev_code_size=1000):
+  
 
     if os.path.isfile(model_path) or \
        os.path.isfile(model_path + ".meta"):
@@ -207,13 +188,13 @@ def run_autoencoder2(experiment,
     with tf.Session() as sess:
         sess.run(init)
 
-        # Define model saver
+        #model saver
         saver = tf.train.Saver(model["params"], write_version=tf.train.SaverDef.V2)
 
         # Initialize with an absurd cost for model selection
+        # and an absurd accuracy for model selection
         prev_costs = np.array([9999999999] * 3)
 
-        # Iterate Epochs
         for epoch in range(training_iters):
 
             # Break training set into batches
@@ -259,7 +240,7 @@ def run_autoencoder2(experiment,
             costs = costs.mean(axis=0)
             cost_train, cost_valid, cost_test = costs
 
-            # Pretty print training info
+             #training info
             print (
                 "Exp={experiment}, Model=ae2, Iter={epoch:5d}, Cost={cost_train:.6f} {cost_valid:.6f} {cost_test:.6f}",
                 {
@@ -271,7 +252,7 @@ def run_autoencoder2(experiment,
                 }
             )
 
-            # Save better model if optimization achieves a lower cost
+            # Save model if optimization achieves a lower cost
             if cost_valid < prev_costs[1]:
                 print ("Saving better model")
                 saver.save(sess, model_path)
@@ -279,16 +260,12 @@ def run_autoencoder2(experiment,
             else:
                 print
 
-
+# Run the pre-trained NN for fine-tuning, using first and second autoencoders' weights
 def run_finetuning(experiment,
                    X_train, y_train, X_valid, y_valid, X_test, y_test,
                    model_path, prev_model_1_path, prev_model_2_path,
                    code_size_1=1000, code_size_2=600):
-    """
-
-    Run the pre-trained NN for fine-tuning, using first and second autoencoders' weights
-
-    """
+    
 
     # Hyperparameters
     learning_rate = 0.0005
@@ -329,7 +306,7 @@ def run_finetuning(experiment,
         {"W": (np.random.randn(600,100)/10000).astype(np.float32), "b": ae2["b_enc"][:100]},
     ])
 
-    # Place GD + momentum optimizer
+    # using Gradient descent  + momentum optimizer
     model["momentum"] = tf.placeholder("float32")
     optimizer = tf.train.MomentumOptimizer(learning_rate, model["momentum"]).minimize(model["cost"])
 
@@ -340,7 +317,7 @@ def run_finetuning(experiment,
     )
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
-    # Initialize Tensorflow session
+  
     init = tf.global_variables_initializer()
     with tf.Session() as sess:
         sess.run(init)
@@ -353,7 +330,6 @@ def run_finetuning(experiment,
         prev_accs = np.array([0.0] * 3)
 
         # Iterate Epochs
-        
         for epoch in range(training_iters):
 
             # Break training set into batches
@@ -367,7 +343,7 @@ def run_finetuning(experiment,
                 alpha = 0.
             if alpha > 1.:
                 alpha = 1.
-            momentum = initial_momentum * (1 - alpha) + alpha * final_momentum
+            momentum = initial_momentum * (1 -alpha) + alpha * final_momentum
 
             total_train=0
             for ib in batches:
@@ -416,15 +392,9 @@ def run_finetuning(experiment,
                     }
                 )
 
-                # if epoch==20:
-                #   print(batch_xs.shape)
-                #   total_train+=batch_xs.shape[0]
-                #   print(y_train_expected,y_train_output)
-                  
+                # Compute training accuracy 
                 costs[ib] = [cost_train, cost_valid, cost_test]
                 accs[ib] = [acc_train, acc_valid, acc_test]
-
-            # print(total_train+X_valid.shape[0]+X_test.shape[0])
 
             # Compute the average costs from all batches
             costs = costs.mean(axis=0)
@@ -457,8 +427,6 @@ def run_finetuning(experiment,
             else:
                 print
           
-
-        #print(y,y_pred)
         return y,y_pred
 
 
@@ -484,13 +452,11 @@ def run_nn(hdf5, experiment, code_size_1, code_size_2):
         X_test, y_test = load_fold(hdf5["patients"], exp_storage, fold)
 
         X_all=np.vstack((X_train,X_valid,X_test))
-        #np.save('X_NYU.npy',X_all)
-        print(X_all.shape)
+        #print(X_all.shape)
         
 
         X_all=X_all[:,:-2]
         y_all=np.concatenate((np.array(y_train),np.array(y_valid),np.array(y_test)),axis=0)
-        #np.save('y_NYU.npy',y_all)
         
         print(y_all.shape)
 
@@ -521,35 +487,8 @@ def run_nn(hdf5, experiment, code_size_1, code_size_2):
 
         print(X_test_2.shape)
 
-        #os._exit()
-
-        '''
-        X_NYU=np.load('X_NYU.npy')
-        y_NYU=np.load('y_NYU.npy')
-
-        X_sub=np.load('/content/drive/MyDrive/acerta-abide/X_sub_without_NYU.npy')
-        y_sub=np.load('/content/drive/MyDrive/acerta-abide/y_sub_without_NYU.npy')
-        
-        X=np.vstack((X_NYU,X_sub))
-        y=np.concatenate((y_NYU,y_sub))
-
-        ks=0
-        if X.shape[1]<10000:
-          ks=1000
-        else:
-          ks=3000
-        X_new=SelectKBest(f_classif,k=ks).fit_transform(X, y)
-        print(X_new.shape)
-
-        
-        X_train,X_test,y_train,y_test = train_test_split(X_new,y,test_size=0.1)
-        X_train,X_valid,y_train,y_valid = train_test_split(X_train,y_train,test_size=0.33)
-
-        print(X_train.shape,X_valid.shape,X_test.shape)'''
-        
-
-
-        
+        #os._exit() 
+        # Save model paths
         ae1_model_path = format_config("./data/models/{experiment}_autoencoder-1.ckpt", {
             "experiment": experiment_cv,
         })
@@ -563,20 +502,18 @@ def run_nn(hdf5, experiment, code_size_1, code_size_2):
         reset()
 
         # Run first autoencoder
-        run_autoencoder1(experiment_cv,
-                         X_train, y_train, X_valid, y_valid, X_test, y_test,
-                         model_path=ae1_model_path,
-                         code_size=code_size_1)
+        run_autoencoder1(experiment_cv, X_train, y_train, X_valid, y_valid, X_test,
+                        y_test, model_path=ae1_model_path, code_size=code_size_1)
 
         reset()
 
         # Run second autoencoder
         run_autoencoder2(experiment_cv,
-                         X_train, y_train, X_valid, y_valid, X_test, y_test,
-                         model_path=ae2_model_path,
-                         prev_model_path=ae1_model_path,
-                         prev_code_size=code_size_1,
-                         code_size=code_size_2)
+                        X_train, y_train, X_valid, y_valid, X_test, y_test,
+                        model_path=ae2_model_path,
+                        prev_model_path=ae1_model_path,
+                        prev_code_size=code_size_1,
+                        code_size=code_size_2)
 
         reset()
 
@@ -608,7 +545,6 @@ if __name__ == "__main__":
                    if derivative in valid_derivatives]
 
     experiments = []
-    #print(derivatives)
 
     for derivative in derivatives:
 
@@ -632,10 +568,9 @@ if __name__ == "__main__":
                                   config, site_config)
                   ]
 
-    # First autoencoder bottleneck
+
     code_size_1 = 1000
 
-    # Second autoencoder bottleneck
     code_size_2 = 600
 
     experiments = sorted(experiments)
@@ -645,7 +580,6 @@ if __name__ == "__main__":
     for experiment in experiments:
  
         print(experiment)
-        #y_pred = run_nn(hdf5, experiment, code_size_1, code_size_2)
         if len(y_pred)==0:
           y_test,y_pred=run_nn(hdf5, experiment, code_size_1, code_size_2)
         else:

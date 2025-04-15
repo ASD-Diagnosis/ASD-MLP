@@ -32,6 +32,7 @@ MANIFEST
 
 # Data
 /data/functionals/
+/data/abide.hdf5
 
 # PyInstaller
 #  Usually these files are written by a python script from a template

@@ -19,20 +19,15 @@ replacement_field = '{' + identifier + '}'
 
 
 def reset():
-    #tf.reset_default_graph()
     ops.reset_default_graph()
-    #tf.compat.v1.reset_default_graph()
-    #random.seed(19)
-    #np.random.seed(19)
     tf.set_random_seed(19)
-    #tf.random.set_seed(19)
+   
 
-
+# Load phenotype CSV and preprocess selected columns (basic version)
 def load_phenotypes(pheno_path):
     pheno = pd.read_csv(pheno_path)
     
     pheno = pheno[pheno['FILE_ID'] != 'no_filename']
-    #pheno = pheno[pheno['FILE_ID'].str.contains("NYU")]
     pheno['DX_GROUP'] = pheno['DX_GROUP'].apply(lambda v: int(v)-1)
     pheno['SITE_ID'] = pheno['SITE_ID'].apply(lambda v: re.sub('_[0-9]', '', v))
     #pheno['SEX'] = pheno['SEX'].apply(lambda v: {1: "M", 2: "F"}[v])
@@ -41,18 +36,15 @@ def load_phenotypes(pheno_path):
     pheno['SUB_IN_SMP'] = pheno['SUB_IN_SMP'].apply(lambda v: v == 1)
     pheno["STRAT"] = pheno[["SITE_ID", "DX_GROUP"]].apply(lambda x: "_".join([str(s) for s in x]), axis=1)
     pheno["AGE"] = pheno['AGE_AT_SCAN']
-
     pheno.index = pheno['FILE_ID']
 
     return pheno[['FILE_ID', 'DX_GROUP', 'SEX', 'SITE_ID', 'MEAN_FD', 'SUB_IN_SMP', 'STRAT','AGE']]
 
-
+# Load phenotype CSV and preprocess selected columns (extended version)
 def load_phenotypes_2(pheno_path):
 
     pheno = pd.read_csv(pheno_path)
-    
     pheno = pheno[pheno['FILE_ID'] != 'no_filename']
-    #pheno = pheno[pheno['FILE_ID'].str.contains("NYU")]
     pheno['DX_GROUP'] = pheno['DX_GROUP'].apply(lambda v: int(v)-1)
     pheno['SITE_ID'] = pheno['SITE_ID'].apply(lambda v: re.sub('_[0-9]', '', v))
     pheno['SEX'] = pheno['SEX'].apply(lambda v: {1: "M", 2: "F"}[v])
@@ -62,7 +54,6 @@ def load_phenotypes_2(pheno_path):
     pheno["STRAT"] = pheno[["SITE_ID", "DX_GROUP"]].apply(lambda x: "_".join([str(s) for s in x]), axis=1)
     pheno["AGE"] = pheno['AGE_AT_SCAN']
 
-    #pheno["FIQ"] = pheno['FIQ'].apply(lambda v: {-9999: '100'}[v])
     pheno["FIQ"] = pheno['FIQ'].fillna(pheno['FIQ'].mean())
 
     pheno['HANDEDNESS_SCORES'] = pheno['HANDEDNESS_SCORES'].fillna(method='bfill')
@@ -70,7 +61,7 @@ def load_phenotypes_2(pheno_path):
 
     return pheno[['FILE_ID', 'DX_GROUP', 'SEX', 'SITE_ID', 'MEAN_FD', 'SUB_IN_SMP', 'STRAT','AGE','HANDEDNESS_SCORES','FIQ']]
 
-
+# Load patient data from HDF5 file
 def hdf5_handler(filename, mode="r"):
     h5py.File(filename, "a").close()
     propfaid = h5py.h5p.create(h5py.h5p.FILE_ACCESS)
@@ -80,9 +71,9 @@ def hdf5_handler(filename, mode="r"):
     propfaid.set_cache(*settings)
     with contextlib.closing(h5py.h5f.open(filename, fapl=propfaid)) as fid:
         f = h5py.File(fid, mode)
-        # f.attrs.create(dtype=h5py.special_dtype(vlen=str)) 
         return f
 
+## Load fold-wise training, validation, and test data from HDF5 + phenotypes
 def load_fold(patients, experiment, fold):
 
     derivative = experiment.attrs["derivative"]
@@ -100,12 +91,7 @@ def load_fold(patients, experiment, fold):
         x=np.array(patients[pid][derivative])
         x=np.append(x,int(p['SEX'].values))
         x=np.append(x,float(p['AGE'].values))
-        # print(p['FILE_ID'])
-        # print(p['SEX'].values)
-        # print(p['AGE'].values)
-        # print(x.shape)
         # X_train.append(np.array(patients[pid][derivative]))
-        #print(len(patients[pid][derivative]))
         X_train.append(x)
         y_train.append(patients[pid].attrs["y"])
 
@@ -149,8 +135,7 @@ class SafeFormat(dict):
         if key not in self:
             return self.__missing__(key)
         return dict.__getitem__(self, key)
-
-
+# Merge multiple dictionaries
 def merge_dicts(*dict_args):
     result = {}
     for dictionary in dict_args:
@@ -158,6 +143,7 @@ def merge_dicts(*dict_args):
     return result
 
 
+# This is a custom string formatter that allows for safe formatting of strings
 def format_config(s, *d):
     dd = merge_dicts(*d)
     return string.Formatter().vformat(s, [], SafeFormat(dd))
@@ -190,7 +176,6 @@ def run_progress(callable_func, items, message=None, jobs=1):
                 sys.stdout.write("\r" + message.format(**args))
                 sys.stdout.flush()
 
-    # Or allocate a pool for multithreading
     else:
         pool = multiprocessing.Pool(processes=jobs)
         for item in items:

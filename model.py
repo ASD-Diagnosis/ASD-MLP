@@ -1,26 +1,18 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-
 import math
 #import tensorflow as tf
 import tensorflow.compat.v1 as tf
 
+tf.disable_v2_behavior()
+# This function creates an autoencoder model using TensorFlow.
 def ae(input_size, code_size,
        corruption=0.0, tight=False,
        enc=tf.nn.tanh, dec=tf.nn.tanh):
-    """
 
-    Autoencoder model: input_size -> code_size -> input_size
-    Supports tight weights and corruption.
 
-    """
-
-    # Define data input placeholder
     x = tf.placeholder(tf.float32, [None, input_size])
 
     if corruption > 0.0:
-
-        # Corrupt data based on random sampling
+        # Corrupt input data
         _x = tf.multiply(x, tf.cast(tf.random_uniform(shape=tf.shape(x),
                                                       minval=0,
                                                       maxval=1 - corruption,
@@ -29,26 +21,20 @@ def ae(input_size, code_size,
     else:
         _x = x
 
-    # Initialize encoder bias
     b_enc = tf.Variable(tf.zeros([code_size]))
 
-    # Initialize encoder weights using Glorot method
     W_enc = tf.Variable(tf.random_uniform(
                 [input_size, code_size],
                 -6.0 / math.sqrt(input_size + code_size),
                 6.0 / math.sqrt(input_size + code_size))
             )
 
-    # Compute activation for encoding
     encode = tf.matmul(_x, W_enc) + b_enc
     if enc is not None:
         encode = enc(encode)
 
-    # Initialize decoder bias
     b_dec = tf.Variable(tf.zeros([input_size]))
     if tight:
-
-        # Tightening using encoder weights
         W_dec = tf.transpose(W_enc)
 
     else:
@@ -67,18 +53,10 @@ def ae(input_size, code_size,
 
     model = {
 
-        # Input placeholder
         "input": x,
-
-        # Encode function
         "encode": encode,
-
-        # Decode function
         "decode": decode,
-
-        # Cost function: mean squared error
         "cost": tf.sqrt(tf.reduce_mean(tf.square(x - decode))),
-        # Model parameters
 
         "params": {
             "W_enc": W_enc,
@@ -88,26 +66,19 @@ def ae(input_size, code_size,
 
     }
 
-    # Add weight decoder parameters
+   
     if not tight:
         model["params"]["W_dec"] = W_dec
 
     return model
 
-
+#neural network model
 def nn(input_size, n_classes, layers, init=None):
-    """
+   
 
-    Multi-layer model
-    Supports tight weights and corruption.
-
-    """
-
-    # Define data input placeholder
     tf.compat.v1.disable_eager_execution()
     input = x = tf.placeholder(tf.float32, [None, input_size])
 
-    # Define expected output placeholder
     y = tf.placeholder("float", [None, n_classes])
 
     actvs = []
@@ -115,33 +86,25 @@ def nn(input_size, n_classes, layers, init=None):
     params = {}
     for i, layer in enumerate(layers):
         #print("layer",i)
-
-        # Define dropout placeholder
         
         dropout = tf.placeholder(tf.float32)
 
         if init is None:
-            # Initialize empty weights
             W = tf.Variable(tf.zeros([input_size, layer["size"]]))
             b = tf.Variable(tf.zeros([layer["size"]]))
             
         else:
-            # Initialize weights with pre-training
+
             W = tf.Variable(init[i]["W"])
             b = tf.Variable(init[i]["b"])
 
-        # Compute layer activation
         x = tf.matmul(x, W) + b
 
         if "actv" in layer and layer["actv"] is not None:
             x = layer["actv"](x)
 
         #print(x.tolist())
-
-        # Compute layer dropout
         x = tf.nn.dropout(x, dropout)
-
-        # Store parameters
         params.update({
             "W_" + str(i+1): W,
             "b_" + str(i+1): b,
@@ -151,17 +114,13 @@ def nn(input_size, n_classes, layers, init=None):
 
         input_size = layer["size"]
       
-    
-    
-
-    # Initialize output weights
+    # Initialize output layer weights & bias using Glorot method
     W = tf.Variable(tf.random_uniform(
             [input_size, n_classes],
             -3.0 / math.sqrt(input_size + n_classes),
             3.0 / math.sqrt(input_size + n_classes)))
     b = tf.Variable(tf.zeros([n_classes]))
 
-    # Compute logits output
     y_hat = tf.matmul(x, W) + b
 
     # Add layer parameters
@@ -170,24 +129,11 @@ def nn(input_size, n_classes, layers, init=None):
 
     return {
 
-        # Input placeholder
         "input": input,
-
-        # Expected output placeholder
         "expected": y,
-
-        # NN output function
         "output": tf.nn.softmax(y_hat),
-
-        # Cost function: cross-entropy
         "cost": tf.reduce_mean(tf.nn.softmax_cross_entropy_with_logits(logits=y_hat, labels=y)),
-
-        # Droupout placeholders
-        "dropouts": dropouts,#dropouts,
-
-        # Layer activations
+        "dropouts": dropouts,
         "actvs": actvs,
-
-        # Model parameters
         "params": params,
     }
