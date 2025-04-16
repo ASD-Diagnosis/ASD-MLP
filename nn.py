@@ -1,3 +1,21 @@
+"""
+
+Autoencoders training and fine-tuning.
+
+Usage:
+  nn.py [--whole] [--male] [--threshold] [--leave-site-out] [<derivative> ...]
+  nn.py (-h | --help)
+
+Options:
+  -h --help           Show this screen
+  --whole             Run model for the whole dataset
+  --male              Run model for male subjects
+  --threshold         Run model for thresholded subjects
+  --leave-site-out    Prepare data using leave-site-out method
+  derivative          Derivatives to process
+
+"""
+
 import os
 import numpy as np
 import tensorflow.compat.v1 as tf

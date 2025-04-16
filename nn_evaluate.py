@@ -1,3 +1,20 @@
+"""
+
+Autoencoders evaluation.
+
+Usage:
+  nn_evaluate.py [--whole] [--male] [--threshold] [--leave-site-out] [--NYU-site-out] [<derivative> ...]
+  nn_evaluate.py (-h | --help)
+
+Options:
+  -h --help           Show this screen
+  --whole             Run model for the whole dataset
+  --male              Run model for male subjects
+  --threshold         Run model for thresholded subjects
+  --leave-site-out    Prepare data using leave-site-out method
+  derivative          Derivatives to process
+
+"""
 import numpy as np
 import pandas as pd
 #import tensorflow as tf

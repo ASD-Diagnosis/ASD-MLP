@@ -1,3 +1,20 @@
+"""
+Data preparation
+Usage:
+  prepare_data.py [--folds=N] [--whole] [--male] [--threshold] [--leave-site-out] [--NYU-site-out] [<derivative> ...]
+  prepare_data.py (-h | --help)
+
+Options:
+  -h --help           Show this screen
+  --folds=N           Number of folds [default: 10]
+  --whole             Prepare data of the whole dataset
+  --male              Prepare data of male subjects
+  --threshold         Prepare data of thresholded subjects
+  --leave-site-out    Prepare data using leave-site-out method
+  derivative          Derivatives to process
+
+"""
+
 import os
 import random
 import numpy as np

@@ -1,3 +1,20 @@
+"""
+
+Data download
+
+Usage:
+  download_abide.py [--pipeline=cpac] [--strategy=filt_global] [<derivative> ...]
+  download_abide.py (-h | --help)
+
+Options:
+  -h --help              Show this screen
+  --pipeline=cpac        Pipeline [default: cpac]
+  --strategy=filt_global Strategy [default: filt_global]
+  derivative             Derivatives to download
+
+"""
+
+
 import os
 import urllib
 import urllib.request
